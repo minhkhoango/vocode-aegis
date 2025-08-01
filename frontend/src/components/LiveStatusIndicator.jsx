@@ -1,7 +1,7 @@
 // frontend/src/components/LiveStatusIndicator.jsx
 import React from 'react';
 
-function LiveStatusIndicator({ status }) {
+function LiveStatusIndicator({ status, activeCalls }) {
   const getStatusColor = (statusValue) => {
     const colors = {
       'green': '#4CAF50',
@@ -25,6 +25,11 @@ function LiveStatusIndicator({ status }) {
         <p className="status-message">{status.message}</p>
       )}
       <small>Last updated: {new Date(status.last_updated).toLocaleTimeString()}</small>
+      
+      <div className="active-calls-display">
+          <h4>Active Calls</h4>
+          <p className="active-calls-count">{activeCalls}</p>
+      </div>
     </div>
   );
 }

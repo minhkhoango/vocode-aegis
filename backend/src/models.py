@@ -32,8 +32,11 @@ class DashboardMetrics(BaseModel):
     last_updated: datetime
 
 class DemoErrorRequest(BaseModel):
-    error_type: str = Field(..., description="Type of error to simulate (e.g., 'LLM_FAILURE', 'SPEECH_API_DOWN')")
-    message: str = Field("Simulated demo error for immediate crisis aversion.", description="Custom message for the simulated error.")
-    severity: str = Field("high", description="Severity of the error (low, medium, high, critical). Defaults to 'high' for impactful demos.")
-    count: int = Field(1, ge=1, description="Number of times to inject this error.")
-    conversation_id: str = Field("demo-conv-12345", description="Simulated conversation ID.") 
+    error_type: str = Field("DEFAULT_ERROR", description="Type of the error, e.g., 'API_TIMEOUT'.")
+    message: str = Field("This is a simulated error.", description="Detailed error message.")
+    severity: str = Field("medium", description="Severity of the error (low, medium, high, critical).")
+    count: int = Field(1, description="Number of errors to inject.")
+    conversation_id: str = Field("demo-conv-12345", description="Simulated conversation ID.")
+
+class SimulateActiveCallsRequest(BaseModel):
+    count: int = Field(..., description="Target number of active calls to simulate (absolute value).") 

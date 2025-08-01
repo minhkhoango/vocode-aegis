@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css'; // Ensure this path is correct
 
 import LiveStatusIndicator from './components/LiveStatusIndicator';
-import ActiveCallsCounter from './components/ActiveCallsCounter';
 import ErrorSummaryTable from './components/ErrorSummaryTable';
 import DemoControls from './components/DemoControls';
 
@@ -126,8 +125,7 @@ function App() {
       </header>
 
       <div className="metrics-grid">
-        <LiveStatusIndicator status={metrics.live_status} />
-        <ActiveCallsCounter count={metrics.active_calls.count} />
+        <LiveStatusIndicator status={metrics.live_status} activeCalls={metrics.active_calls.count} />
         <ErrorSummaryTable
           errors={metrics.error_summary}
           onDrillDown={handleErrorDrillDown}

@@ -3,13 +3,11 @@ import asyncio
 import logging
 import os
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, Any, List
 
 from fastapi import WebSocket, WebSocketDisconnect, HTTPException, status
-from fastapi.responses import HTMLResponse
 
-from .models import DashboardMetrics, ActiveCallsMetric, DemoErrorRequest
+from .models import DashboardMetrics, ActiveCallsMetric, DemoErrorRequest, SimulateActiveCallsRequest
 from .websocket_manager import ConnectionManager
 from .metrics_aggregator import MetricsAggregator
 from .redis_consumer import VocodeRedisConsumer
@@ -93,48 +91,46 @@ async def inject_demo_error(request: DemoErrorRequest) -> Dict[str, str]:
 
     return {"message": f"Successfully injected {injected_count} errors of type '{request.error_type}' with severity '{request.severity}'.", "status": "success"}
 
-async def serve_frontend() -> HTMLResponse:
-    """Serve the React frontend."""
-    # This assumes 'index.html' is directly in the 'static' directory
-    # 'static' is where the React build output is copied inside the container
-    html_file_path = Path("static") / "index.html"
-    if not html_file_path.exists():
-        # Try alternative locations for index.html
-        alternative_paths = [
-            Path("static") / "index.html",
-            Path("static") / "static" / "index.html",
-            Path("static") / "build" / "index.html"
-        ]
-        
-        for alt_path in alternative_paths:
-            if alt_path.exists():
-                html_file_path = alt_path
-                break
-        else:
-            # If no index.html is found, return a helpful error message
-            return HTMLResponse(
-                content="""
-                <h1>Frontend build not found!</h1>
-                <p>The React application has not been built or the build files are not in the expected location.</p>
-                <p>Expected locations:</p>
-                <ul>
-                    <li>/app/static/index.html</li>
-                    <li>/app/static/static/index.html</li>
-                    <li>/app/static/build/index.html</li>
-                </ul>
-                <p>Please ensure the frontend is built and copied correctly in the Docker container.</p>
-                """, 
-                status_code=404
-            )
-    
-    try:
-        return HTMLResponse(content=html_file_path.read_text(), status_code=200)
-    except Exception as e:
-        logger.error(f"Error reading index.html: {e}")
-        return HTMLResponse(
-            content=f"<h1>Error loading frontend</h1><p>Could not read index.html: {str(e)}</p>", 
-            status_code=500
+async def simulate_active_calls(request: SimulateActiveCallsRequest) -> Dict[str, str]:
+    """
+    Allows simulating a specific number of active calls for demonstration purposes.
+    NOTE: THIS ENDPOINT IS FOR DEMO/DEVELOPMENT ONLY AND SHOULD BE REMOVED OR SECURED IN PRODUCTION.
+    """
+    if redis_consumer is None:
+        logger.error("Attempted to simulate active calls, but Redis consumer is not initialized.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Error: Redis consumer service not initialized."
         )
+
+    redis_consumer.active_calls = request.count
+    logger.warning(f"DEMO MODE: Simulated active calls set to: {request.count}")
+
+    return {"message": f"Successfully simulated {request.count} active calls.", "status": "success"}
+
+async def reset_demo_state() -> Dict[str, str]:
+    """
+    Resets all demo-related states to their defaults.
+    - Resets active calls to 0.
+    - Clears the error buffer.
+    NOTE: THIS ENDPOINT IS FOR DEMO/DEVELOPMENT ONLY.
+    """
+    if redis_consumer is None:
+        logger.error("Attempted to reset demo state, but Redis consumer is not initialized.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Error: Redis consumer service not initialized."
+        )
+
+    # Reset active calls
+    redis_consumer.active_calls = 0
+    
+    # Clear the error buffer
+    redis_consumer.error_buffer.clear()
+    
+    logger.warning("DEMO MODE: All demo states have been reset.")
+    
+    return {"message": "Successfully reset all demo states.", "status": "success"}
 
 async def health_check() -> Dict[str, Any]:
     """Enhanced health check that includes Redis connectivity status and LiveStatus calculation."""
@@ -221,70 +217,4 @@ async def get_error_logs(error_type: str, limit: int = 50) -> Dict[str, List[Dic
         key=lambda x: int(x['timestamp']), # Sort by timestamp numerically
         reverse=True # Most recent first
     )
-    return {"errors": matching_errors[:limit]}
-
-async def log_viewer_page(error_type: str) -> HTMLResponse:
-    """Return HTML page for viewing logs."""
-    # The frontend is served statically, so this endpoint only provides the raw data.
-    # The previous Perplexity suggestion for a direct HTML page generation here is okay for MVP,
-    # but more robust would be for the React app to handle this route and fetch the data
-    # via the /logs/{error_type} API endpoint. For strict MVP, this is fine.
-    html_content = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Error Logs - {error_type}</title>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 2rem; background-color: #f8f9fa; color: #333; line-height: 1.6; }}
-            h1 {{ color: #343a40; border-bottom: 2px solid #e9ecef; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }}
-            .log-entry {{ margin-bottom: 1rem; padding: 1rem; background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }}
-            .timestamp {{ color: #6c757d; font-size: 0.9em; margin-bottom: 0.5rem; display: block; }}
-            .error-message {{ color: #dc3545; font-weight: bold; font-size: 1.1em; margin-bottom: 0.5rem; }}
-            .severity {{ font-size: 0.9em; color: #495057; }}
-            .conversation-id {{ font-size: 0.8em; color: #6c757d; }}
-        </style>
-    </head>
-    <body>
-        <h1>Error Logs: {error_type}</h1>
-        <div id="logs">Loading logs...</div>
-        <script>
-            // This fetch URL must be relative or absolute to the FastAPI server
-            fetch('/logs/{error_type}')
-                .then(response => {{
-                    if (!response.ok) {{
-                        throw new Error(`HTTP error! status: ${{response.status}}`);
-                    }}
-                    return response.json();
-                }})
-                .then(data => {{
-                    const container = document.getElementById('logs');
-                    container.innerHTML = ''; // Clear loading message
-                    if (data.errors && data.errors.length > 0) {{
-                        data.errors.forEach(error => {{
-                            const div = document.createElement('div');
-                            div.className = 'log-entry';
-                            const timestamp = new Date(parseInt(error.timestamp)).toLocaleString();
-                            div.innerHTML = `
-                                <span class="timestamp">${{timestamp}}</span>
-                                <div class="error-message">${{error.message}}</div>
-                                <div class="severity">Severity: ${{error.severity}}</div>
-                                <div class="conversation-id">Conversation ID: ${{error.conversation_id || 'N/A'}}</div>
-                            `;
-                            container.appendChild(div);
-                        }});
-                    }} else {{
-                        container.innerHTML = '<p>No logs found for this error type.</p>';
-                    }}
-                }})
-                .catch(e => {{
-                    console.error('Failed to fetch logs:', e);
-                    const container = document.getElementById('logs');
-                    container.innerHTML = `<p style="color: red;">Failed to load logs: ${{e.message}}</p>`;
-                }});
-        </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content) 
+    return {"errors": matching_errors[:limit]} 

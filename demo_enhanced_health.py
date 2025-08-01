@@ -29,41 +29,33 @@ async def inject_test_errors():
         await redis_client.ping()  # type: ignore
         print("✅ Connected to Redis successfully")
         
-        # Test 1: Inject a high severity error
-        print("\n📋 Test 1: Injecting HIGH severity error")
-        high_error_data = {
-            'error_type': 'LLM_CRITICAL_FAILURE',
-            'message': 'LLM service completely down - all calls failing',
-            'severity': 'high',
-            'conversation_id': 'test-conv-001'
-        }
+        # Test 1: Inject low severity errors
+        print("\n📋 Test 1: Injecting LOW severity errors")
+        low_errors = [
+            {
+                'error_type': 'RATE_LIMIT_EXCEEDED',
+                'message': 'Rate limit exceeded for API calls',
+                'severity': 'low',
+                'conversation_id': 'test-conv-001'
+            },
+            {
+                'error_type': 'CONNECTION_TIMEOUT',
+                'message': 'Connection timeout - retrying',
+                'severity': 'low',
+                'conversation_id': 'test-conv-002'
+            }
+        ]
         
-        # Use xadd with proper field format
-        msg_id: str = cast(str, await redis_client.xadd('vocode:errors', high_error_data))  # type: ignore
-        print(f"✅ Injected HIGH severity error: {high_error_data['error_type']} (ID: {msg_id})")
-        print("   Expected: Dashboard should turn RED with 'RED ALERT' message")
+        for error in low_errors:
+            msg_id = cast(str, await redis_client.xadd('vocode:errors', error))  # type: ignore
+            print(f"✅ Injected LOW severity error: {error['error_type']} (ID: {msg_id})")
         
+        print("   Expected: Dashboard should remain GREEN with info message")
         print("⏳ Waiting 5 seconds to observe UI changes...")
         await asyncio.sleep(5)
         
-        # Test 2: Inject a critical severity error
-        print("\n📋 Test 2: Injecting CRITICAL severity error")
-        critical_error_data = {
-            'error_type': 'SYSTEM_CRASH',
-            'message': 'System completely crashed - immediate attention required',
-            'severity': 'critical',
-            'conversation_id': 'test-conv-002'
-        }
-        
-        msg_id = cast(str, await redis_client.xadd('vocode:errors', critical_error_data))  # type: ignore
-        print(f"✅ Injected CRITICAL severity error: {critical_error_data['error_type']} (ID: {msg_id})")
-        print("   Expected: Dashboard should turn RED with 'CRITICAL' message")
-        
-        print("⏳ Waiting 5 seconds to observe UI changes...")
-        await asyncio.sleep(5)
-        
-        # Test 3: Inject multiple medium severity errors
-        print("\n📋 Test 3: Injecting multiple MEDIUM severity errors")
+        # Test 2: Inject multiple medium severity errors
+        print("\n📋 Test 2: Injecting multiple MEDIUM severity errors")
         medium_errors = [
             {
                 'error_type': 'AUDIO_PROCESSING_FAILURE',
@@ -93,28 +85,36 @@ async def inject_test_errors():
         print("⏳ Waiting 5 seconds to observe UI changes...")
         await asyncio.sleep(5)
         
-        # Test 4: Inject low severity errors
-        print("\n📋 Test 4: Injecting LOW severity errors")
-        low_errors = [
-            {
-                'error_type': 'RATE_LIMIT_EXCEEDED',
-                'message': 'Rate limit exceeded for API calls',
-                'severity': 'low',
-                'conversation_id': 'test-conv-006'
-            },
-            {
-                'error_type': 'CONNECTION_TIMEOUT',
-                'message': 'Connection timeout - retrying',
-                'severity': 'low',
-                'conversation_id': 'test-conv-007'
-            }
-        ]
+        # Test 3: Inject a high severity error
+        print("\n📋 Test 3: Injecting HIGH severity error")
+        high_error_data = {
+            'error_type': 'LLM_UNRESPONSIVE',
+            'message': 'LLM service is unresponsive and timing out.',
+            'severity': 'high',
+            'conversation_id': 'test-conv-006'
+        }
         
-        for error in low_errors:
-            msg_id = cast(str, await redis_client.xadd('vocode:errors', error))  # type: ignore
-            print(f"✅ Injected LOW severity error: {error['error_type']} (ID: {msg_id})")
+        # Use xadd with proper field format
+        msg_id: str = cast(str, await redis_client.xadd('vocode:errors', high_error_data))  # type: ignore
+        print(f"✅ Injected HIGH severity error: {high_error_data['error_type']} (ID: {msg_id})")
+        print("   Expected: Dashboard should turn RED with 'RED ALERT' message")
         
-        print("   Expected: Dashboard should remain GREEN with info message")
+        print("⏳ Waiting 5 seconds to observe UI changes...")
+        await asyncio.sleep(5)
+        
+        # Test 4: Inject a critical severity error
+        print("\n📋 Test 4: Injecting CRITICAL severity error")
+        critical_error_data = {
+            'error_type': 'SYSTEM_CRASH',
+            'message': 'System completely crashed - immediate attention required',
+            'severity': 'critical',
+            'conversation_id': 'test-conv-007'
+        }
+        
+        msg_id = cast(str, await redis_client.xadd('vocode:errors', critical_error_data))  # type: ignore
+        print(f"✅ Injected CRITICAL severity error: {critical_error_data['error_type']} (ID: {msg_id})")
+        print("   Expected: Dashboard should turn RED with 'CRITICAL' message")
+        
         print("⏳ Waiting 5 seconds to observe UI changes...")
         await asyncio.sleep(5)
         

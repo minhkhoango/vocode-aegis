@@ -56,7 +56,7 @@ class MetricsAggregator:
         message: str | None = None
 
         # Enhanced thresholds based on weighted error score
-        if total_error_score >= 15 or critical_severity_count > 0:
+        if total_error_score >= 10 or critical_severity_count > 0 or high_severity_count > 0:
             status = "red"
             if critical_severity_count > 0:
                 message = f"CRITICAL: {critical_severity_count} critical errors detected! Immediate attention required."
@@ -64,7 +64,7 @@ class MetricsAggregator:
                 message = f"RED ALERT: {high_severity_count} high severity errors + {total_error_score} weighted score. System compromised."
             else:
                 message = f"RED ALERT: {total_error_score} weighted error score indicates critical system issues."
-        elif total_error_score >= 8 or high_severity_count > 0:
+        elif total_error_score >= 5:
             status = "yellow"
             if high_severity_count > 0:
                 message = f"WARNING: {high_severity_count} high severity errors detected. Monitor closely."

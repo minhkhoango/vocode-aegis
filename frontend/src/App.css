@@ -32,8 +32,8 @@ body {
   }
   
   .dashboard {
-    display: flex;
-    flex-direction: column;
+    padding: 2rem;
+    background-color: #f4f7f9;
     min-height: 100vh;
   }
   
@@ -258,16 +258,81 @@ body {
 }
 
 .demo-button.critical {
-  background-color: #dc3545; /* Red for critical */
+  background-color: #e53e3e; /* Darker red for critical failures */
+  color: white;
+  border: 1px solid #c53030;
+}
+
+.demo-button.high {
+  background-color: #dd6b20; /* Dark orange for high severity */
+  color: white;
+  border: 1px solid #c05621;
+}
+
+.demo-button.medium {
+  background-color: #ffc107; /* Amber for medium severity */
+  color: #212529; /* Dark text for better contrast */
+  border: 1px solid #e0a800;
+}
+
+.demo-button.low {
+  background-color: #28a745; /* Green for low severity */
+  color: white;
+  border: 1px solid #218838;
+}
+
+.demo-button.success {
+  background-color: #38a169; /* Green for success */
   color: white;
 }
 
-.demo-button.critical:hover {
-  background-color: #c82333;
+.demo-button.success:hover {
+  background-color: #218838;
+}
+
+.demo-button.default {
+  background-color: #6c757d; /* Gray */
+  color: white;
+}
+
+.demo-button.default:hover {
+  background-color: #5a6268;
+}
+
+.demo-button.reset {
+  background-color: #007bff; /* Primary blue */
+  color: white;
+  border: 1px solid #0069d9;
 }
 
 .demo-status-message {
   margin-top: 1rem;
   font-size: 0.85em;
   color: #333;
+}
+
+.toast-notification {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #4CAF50; /* Green for success */
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 1rem;
+  z-index: 1000;
+  animation: fadeInOut 3s ease-in-out;
+}
+
+@keyframes fadeInOut {
+  0%, 100% {
+    opacity: 0;
+    bottom: 0;
+  }
+  10%, 90% {
+    opacity: 1;
+    bottom: 20px;
+  }
 }

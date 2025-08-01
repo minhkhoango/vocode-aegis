@@ -11,14 +11,15 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api_endpoints import (
-    websocket_endpoint, serve_frontend, health_check, 
-    get_error_logs, log_viewer_page, set_global_dependencies,
-    inject_demo_error
+    websocket_endpoint, health_check, 
+    get_error_logs, set_global_dependencies,
+    inject_demo_error, simulate_active_calls,
+    reset_demo_state
 )
 from .metrics_aggregator import MetricsAggregator
 from .redis_consumer import VocodeRedisConsumer
 from .websocket_manager import ConnectionManager
-from .models import DemoErrorRequest
+from .models import DemoErrorRequest, SimulateActiveCallsRequest
 
 # Configure logging
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -81,16 +82,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files - React build creates nested static directory
-# Only mount if the directory exists (for testing purposes)
-static_dir = Path("static/static")
+# Mount static files - the React build creates a 'static' directory.
+# The 'build' directory from the frontend is copied to 'static' in the Dockerfile.
+static_dir = Path("static")
 if static_dir.exists():
-    app.mount("/static", StaticFiles(directory="static/static"), name="static")
+    app.mount("/static", StaticFiles(directory=static_dir / "static"), name="static")
+    
+    @app.get("/{full_path:path}", response_class=HTMLResponse)
+    async def serve_react_app(full_path: str):
+        """
+        Serve the React application.
+        This endpoint catches all other paths and serves the index.html,
+        allowing React Router to handle the client-side routing.
+        """
+        index_path = static_dir / "index.html"
+        if index_path.exists():
+            with open(index_path, "r") as f:
+                return HTMLResponse(content=f.read(), status_code=200)
+        return HTMLResponse(content="Frontend not found.", status_code=404)
 else:
-    # Fallback: mount the static directory directly if nested structure doesn't exist
-    fallback_static_dir = Path("static")
-    if fallback_static_dir.exists():
-        app.mount("/static", StaticFiles(directory="static"), name="static")
+    logger.warning("Static directory not found. Frontend will not be served.")
 
 # --- API Endpoints ---
 
@@ -98,10 +109,6 @@ else:
 async def websocket_endpoint_handler(websocket: WebSocket):
     """WebSocket endpoint handler."""
     await websocket_endpoint(websocket)
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    return await serve_frontend()
 
 @app.get("/health")
 async def health():
@@ -111,11 +118,17 @@ async def health():
 async def logs_endpoint(error_type: str, limit: int = 50):
     return await get_error_logs(error_type, limit)
 
-@app.get("/logs/{error_type}/viewer", response_class=HTMLResponse)
-async def logs_viewer_endpoint(error_type: str):
-    return await log_viewer_page(error_type)
-
 @app.post("/demo/error", status_code=status.HTTP_200_OK)
 async def demo_error_endpoint(request: DemoErrorRequest):
     """Demo error injection endpoint for testing purposes."""
-    return await inject_demo_error(request) 
+    return await inject_demo_error(request)
+
+@app.post("/demo/active_calls", status_code=status.HTTP_200_OK)
+async def demo_active_calls_endpoint(request: SimulateActiveCallsRequest):
+    """Demo active calls simulation endpoint for testing purposes."""
+    return await simulate_active_calls(request)
+
+@app.post("/demo/reset", status_code=status.HTTP_200_OK)
+async def demo_reset_endpoint():
+    """Endpoint to reset all demo-related states."""
+    return await reset_demo_state()
