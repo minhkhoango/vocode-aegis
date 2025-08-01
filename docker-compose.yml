@@ -1,0 +1,78 @@
+# docker-compose.yml
+services:
+  # Vocode Analytics Dashboard - Sidecar Pattern
+  vocode-analytics-dashboard:
+    build:
+      context: . # Build context is the root of the vocode-analytics-dashboard directory
+      dockerfile: Dockerfile
+    container_name: vocode-analytics-dashboard
+    ports:
+      - "3001:8000" # Expose on different port to avoid conflicts with other apps
+    environment:
+      # These variables are consumed by the FastAPI backend
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DASHBOARD_REFRESH_INTERVAL=${DASHBOARD_REFRESH_INTERVAL:-5000} # Milliseconds
+      # These variables are consumed by the React frontend (via `react-scripts build`)
+      - REACT_APP_WS_URL=ws://localhost:3001/ws
+      - REACT_APP_API_URL=http://localhost:3001
+    depends_on:
+      redis:
+        condition: service_healthy # Ensure Redis is healthy before starting dashboard
+    networks:
+      - vocode-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s # Give the FastAPI app a bit more time to start up
+
+  # Redis instance (can be shared with Vocode or separate for isolation)
+  redis:
+    image: redis:7.2-alpine # Alpine image for smaller size
+    container_name: vocode-redis
+    ports:
+      - "6379:6379" # Expose Redis port
+    volumes:
+      - redis-data:/data # Persistent volume for Redis data
+    networks:
+      - vocode-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes # Enable AOF for data persistence
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Optional: Redis Commander for debugging and inspection
+  # Run this service only when explicitly requested using '--profile debug'
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    hostname: redis-commander
+    ports:
+      - "8081:8081" # Web UI port
+    environment:
+      - REDIS_HOSTS=local:redis:6379 # Connect to the 'redis' service within the Docker network
+    networks:
+      - vocode-network
+    depends_on:
+      - redis
+    profiles:
+      - debug # Only start with `docker compose --profile debug up -d`
+
+# Network configuration for sidecar pattern
+networks:
+  vocode-network:
+    driver: bridge
+    name: vocode-network # Explicitly name the network
+
+# Volumes for data persistence
+volumes:
+  redis-data:
+    driver: local
+    name: vocode-redis-data # Explicitly name the volume

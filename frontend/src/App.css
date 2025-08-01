@@ -1,0 +1,273 @@
+/* frontend/src/App.css - Minimal dashboard styling */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+  }
+  
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-size: 1.2rem;
+    color: #555;
+  }
+  
+  .loading-spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  
+  .dashboard-header {
+    background: white;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    gap: 1rem; /* Space between items when wrapping */
+  }
+  
+  .dashboard-header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: #333;
+  }
+  
+  .connection-status {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  
+  .connection-status.connected { background: #4CAF50; color: white; }
+  .connection-status.connecting { background: #FF9800; color: white; }
+  .connection-status.disconnected, .connection-status.error { background: #F44336; color: white; }
+  
+  
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem; /* Increased gap for better spacing */
+    padding: 2rem;
+    flex-grow: 1; /* Allow grid to take available space */
+  }
+  
+  .metric-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Space out content in card */
+  }
+  
+  .metric-card h3 {
+    margin-top: 0;
+    color: #555;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* Increased gap */
+    margin: 1rem 0;
+  }
+  
+  .status-circle {
+    width: 20px; /* Slightly larger circle */
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.1); /* Subtle border for definition */
+  }
+  
+  .status-text {
+    font-size: 1.5rem; /* Larger status text */
+    font-weight: bold;
+    color: #333;
+  }
+  
+  .status-message {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+  }
+  
+  .active-calls .metric-value {
+    text-align: center;
+    margin: 2rem 0; /* More vertical space */
+  }
+  
+  .count-number {
+    font-size: 4.5rem; /* Significantly larger number */
+    font-weight: bold;
+    color: #007bff; /* Primary blue color */
+    line-height: 1; /* Ensure tight line height */
+  }
+  
+  .error-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .error-table th,
+  .error-table td {
+    padding: 0.8rem; /* More padding */
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .error-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #495057;
+  }
+  
+  .error-table tbody tr:hover {
+    background-color: #f0f0f0; /* Hover effect */
+  }
+  
+  .drill-down-btn {
+    background: #007bff; /* Primary blue */
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem; /* More padding */
+    border-radius: 5px; /* Slightly more rounded */
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background-color 0.2s ease;
+  }
+  
+  .drill-down-btn:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+  }
+  
+  .severity {
+    padding: 0.3em 0.6em;
+    border-radius: 3px;
+    font-weight: bold;
+    color: white; /* Text color for severity */
+  }
+  .severity.high { background-color: #dc3545; } /* Red */
+  .severity.medium { background-color: #ffc107; color: #333; } /* Orange */
+  .severity.low { background-color: #28a745; } /* Green */
+  
+  .no-errors {
+    color: #28a745;
+    font-weight: bold;
+    text-align: center;
+    padding: 2rem;
+  }
+  
+  small {
+    color: #777;
+    font-size: 0.8em;
+    margin-top: 1rem;
+  }
+  
+  
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start; /* Align header items to start on mobile */
+      padding: 1rem;
+    }
+    .dashboard-header h1 {
+      font-size: 1.5rem;
+    }
+    .connection-status {
+      width: 100%;
+      text-align: center;
+    }
+    .metrics-grid {
+      grid-template-columns: 1fr;
+      padding: 1rem;
+    }
+    .metric-card {
+      padding: 1rem;
+    }
+    .count-number {
+      font-size: 3.5rem;
+    }
+    .error-table {
+      font-size: 0.8rem;
+    }
+    .error-table th, .error-table td {
+      padding: 0.5rem;
+      font-size: 0.85rem;
+    }
+  }
+
+/* Demo Controls Styles */
+.demo-controls {
+  /* Basic styling for the card */
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background-color: #f0f0f0; /* Light background to distinguish */
+  text-align: center;
+}
+
+.demo-controls h3 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.demo-controls p {
+  font-size: 0.9em;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.demo-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin: 0.5rem;
+}
+
+.demo-button.critical {
+  background-color: #dc3545; /* Red for critical */
+  color: white;
+}
+
+.demo-button.critical:hover {
+  background-color: #c82333;
+}
+
+.demo-status-message {
+  margin-top: 1rem;
+  font-size: 0.85em;
+  color: #333;
+}
