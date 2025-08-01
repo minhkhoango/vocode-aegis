@@ -119,9 +119,12 @@ async def logs_endpoint(error_type: str, limit: int = 50):
     return await get_error_logs(error_type, limit)
 
 @app.post("/demo/error", status_code=status.HTTP_200_OK)
-async def demo_error_endpoint(request: DemoErrorRequest):
-    """Demo error injection endpoint for testing purposes."""
-    return await inject_demo_error(request)
+async def demo_error_endpoint(request: DemoErrorRequest, broadcast: bool = True):
+    """
+    Demo error injection endpoint for testing purposes.
+    `broadcast` query param forces immediate metric broadcast.
+    """
+    return await inject_demo_error(request, broadcast=broadcast)
 
 @app.post("/demo/active_calls", status_code=status.HTTP_200_OK)
 async def demo_active_calls_endpoint(request: SimulateActiveCallsRequest):

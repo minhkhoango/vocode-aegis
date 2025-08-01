@@ -1,36 +1,22 @@
 import React, { useState, useEffect } from 'react';
 
-const errorLevels = [
-  {
-    level: 'low',
-    type: 'CONNECTION_TIMEOUT',
-    message: 'A minor connection timeout occurred.',
-    count: 1,
-  },
-  {
-    level: 'medium',
-    type: 'LLM_TIMEOUT',
-    message: 'A medium severity LLM timeout occurred.',
-    count: 2,
-  },
-  {
-    level: 'high',
-    type: 'SYSTEM_CRASH',
-    message: 'A high severity system crash occurred.',
-    count: 2,
-  },
-  {
-    level: 'critical',
-    type: 'LLM_CRITICAL_FAILURE',
-    message: 'AI brain unresponsive - immediate impact on calls!',
-    count: 3,
-  },
+const errorDefinitions = {
+  low: { level: 'low', type: 'CONNECTION_TIMEOUT', message: 'A minor connection timeout occurred.' },
+  medium: { level: 'medium', type: 'LLM_TIMEOUT', message: 'A medium severity LLM timeout occurred.' },
+  high: { level: 'high', type: 'SYSTEM_CRASH', message: 'A high severity system crash occurred.' },
+};
+
+const errorInjectionSequence = [
+  errorDefinitions.low,
+  errorDefinitions.low,
+  errorDefinitions.medium,
+  errorDefinitions.high,
 ];
 
 const DemoControls = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
-  const [errorLevelIndex, setErrorLevelIndex] = useState(0);
+  const [isInjecting, setIsInjecting] = useState(false);
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
   useEffect(() => {
@@ -47,16 +33,25 @@ const DemoControls = () => {
     setShowToast(true);
   };
 
-  const handleSimulateError = () => {
-    const error = errorLevels[errorLevelIndex];
-    triggerDemoError(error.type, error.message, error.level, error.count);
-    setErrorLevelIndex((prevIndex) => (prevIndex + 1) % errorLevels.length);
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const handleSimulateError = async () => {
+    setIsInjecting(true);
+    setStatusMessage('Starting error injection sequence...');
+
+    for (const error of errorInjectionSequence) {
+      await triggerDemoError(error.type, error.message, error.level, 1);
+      await sleep(2000); // Wait 1 second
+    }
+
+    setStatusMessage('Error injection sequence complete.');
+    setIsInjecting(false);
   };
 
   const triggerDemoError = async (errorType, message, severity, count) => {
-    setStatusMessage('Injecting...');
+    setStatusMessage(`Injecting ${severity} error...`);
     try {
-      const response = await fetch(`${API_URL}/demo/error`, {
+      const response = await fetch(`${API_URL}/demo/error?broadcast=true`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,17 +115,16 @@ const DemoControls = () => {
     }
   };
 
-  const currentErrorLevel = errorLevels[errorLevelIndex].level;
-
   return (
     <div className="metric-card demo-controls">
       <h3>Demo Controls</h3>
       <p>Trigger simulated failures and scenarios to demonstrate real-time crisis monitoring and response capabilities.</p>
       <button
         onClick={handleSimulateError}
-        className={`demo-button ${currentErrorLevel}`}
+        className="demo-button critical"
+        disabled={isInjecting}
       >
-        Simulate Error ({currentErrorLevel})
+        {isInjecting ? 'Injecting Errors...' : 'Simulate Error Sequence'}
       </button>
       <button
         onClick={() => triggerActiveCallsSimulation(50)}

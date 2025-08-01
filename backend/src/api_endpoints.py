@@ -63,16 +63,16 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         if manager:
             manager.disconnect(websocket) # Ensure disconnection is handled
 
-async def inject_demo_error(request: DemoErrorRequest) -> Dict[str, str]:
+async def inject_demo_error(request: DemoErrorRequest, broadcast: bool = True) -> Dict[str, str]:
     """
     Allows injecting simulated error events for demonstration purposes.
-    NOTE: THIS ENDPOINT IS FOR DEMO/DEVELOPMENT ONLY AND SHOULD BE REMOVED OR SECURED IN PRODUCTION.
+    If broadcast is True, it will immediately broadcast updated metrics.
     """
-    if redis_consumer is None:
-        logger.error("Attempted to inject demo error, but Redis consumer is not initialized.")
+    if redis_consumer is None or aggregator is None or manager is None:
+        logger.error("Attempted to inject demo error, but a required service is not initialized.")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Error: Redis consumer service not initialized."
+            detail="Error: A required service is not initialized."
         )
 
     injected_count = 0
@@ -88,6 +88,19 @@ async def inject_demo_error(request: DemoErrorRequest) -> Dict[str, str]:
         redis_consumer.error_buffer.append(demo_error_data)
         injected_count += 1
         logger.warning(f"DEMO MODE: Injected {request.severity.upper()} error: {request.error_type} - '{request.message}' (Count: {injected_count})")
+
+    if broadcast:
+        # After injecting, immediately recalculate and broadcast metrics
+        metrics = DashboardMetrics(
+            live_status=aggregator.calculate_live_status(redis_consumer),
+            active_calls=ActiveCallsMetric(
+                count=redis_consumer.active_calls,
+                timestamp=datetime.now()
+            ),
+            error_summary=aggregator.get_24h_error_summary(redis_consumer),
+            last_updated=datetime.now()
+        )
+        await manager.broadcast_metrics(metrics)
 
     return {"message": f"Successfully injected {injected_count} errors of type '{request.error_type}' with severity '{request.severity}'.", "status": "success"}
 
