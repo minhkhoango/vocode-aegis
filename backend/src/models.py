@@ -25,10 +25,16 @@ class ErrorSummary(BaseModel):
     last_occurrence: datetime
     severity: str
 
+class FinancialMetrics(BaseModel):
+    estimated_revenue_per_min: float = Field(..., description="Estimated revenue generated or cost saved per minute from active calls.")
+    estimated_cost_of_recent_errors: float = Field(..., description="Estimated monetary cost of errors in the last X minutes.")
+    total_roi: float = Field(..., description="Total estimated ROI (Min Run * Value/Min - Cost of Recent Errors).")
+
 class DashboardMetrics(BaseModel):
     live_status: LiveStatus
     active_calls: ActiveCallsMetric
     error_summary: List[ErrorSummary]
+    financial_impact: FinancialMetrics
     last_updated: datetime
 
 class DemoErrorRequest(BaseModel):
@@ -39,4 +45,4 @@ class DemoErrorRequest(BaseModel):
     conversation_id: str = Field("demo-conv-12345", description="Simulated conversation ID.")
 
 class SimulateActiveCallsRequest(BaseModel):
-    count: int = Field(..., description="Target number of active calls to simulate (absolute value).") 
+    delta: int = Field(..., description="Number of active calls to add or subtract.") 

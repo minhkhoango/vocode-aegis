@@ -38,7 +38,10 @@ function ErrorSummaryTable({ errors, onDrillDown }) {
               <td>
                 <button
                   className="drill-down-btn"
-                  onClick={() => onDrillDown(error.error_type)}
+                  onClick={() => {
+                    console.log(`Drill down clicked for error type: '${error.error_type}'`);
+                    onDrillDown(error.error_type);
+                  }}
                 >
                   View Logs
                 </button>

@@ -4,10 +4,12 @@ import './App.css'; // Ensure this path is correct
 
 import LiveStatusIndicator from './components/LiveStatusIndicator';
 import ErrorSummaryTable from './components/ErrorSummaryTable';
-import DemoControls from './components/DemoControls';
+import LogViewerModal from './components/LogViewerModal';
+
 
 // Get WebSocket URL from environment variable injected by react-scripts (set in .env for frontend)
 const WEBSOCKET_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:3001/ws';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'; // Ensure API_URL is available
 
 function App() {
   const [metrics, setMetrics] = useState(null);
@@ -17,6 +19,9 @@ function App() {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 10;
   const baseReconnectDelay = 1000; // 1 second
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedErrorType, setSelectedErrorType] = useState('');
+  const [modalLogs, setModalLogs] = useState([]);
 
   // Exponential backoff reconnection strategy
   const scheduleReconnect = useCallback(() => {
@@ -100,10 +105,29 @@ function App() {
     };
   }, [connectWebSocket]); // Re-run effect if connectWebSocket changes (it won't in this case due to useCallback)
 
-  const handleErrorDrillDown = (errorType) => {
-    // Open error logs in new window/modal
-    // This URL will be handled by the FastAPI server directly, serving HTML
-    window.open(`/logs/${errorType}/viewer`, '_blank', 'width=800,height=600,scrollbars=yes');
+  const handleErrorDrillDown = async (errorType) => {
+    setSelectedErrorType(errorType);
+    try {
+      console.log(`Fetching logs for error type: ${errorType}`); // Log the error type
+      const response = await fetch(`${API_URL}/logs/${errorType}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('Received data from /logs endpoint:', data); // Log the received data
+      setModalLogs(data.errors || []);
+      setIsModalOpen(true); // Open the modal
+    } catch (error) {
+      console.error('Failed to fetch logs for modal:', error);
+      setModalLogs([]); // Clear logs on error
+      setIsModalOpen(true); // Still open modal to show error message or "no logs"
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedErrorType('');
+    setModalLogs([]);
   };
 
   if (!metrics) {
@@ -125,13 +149,23 @@ function App() {
       </header>
 
       <div className="metrics-grid">
-        <LiveStatusIndicator status={metrics.live_status} activeCalls={metrics.active_calls.count} />
+        <LiveStatusIndicator
+          status={metrics.live_status}
+          activeCalls={metrics.active_calls.count}
+          financialImpact={metrics.financial_impact}
+          metrics={metrics}
+        />
         <ErrorSummaryTable
           errors={metrics.error_summary}
           onDrillDown={handleErrorDrillDown}
         />
-        <DemoControls />
       </div>
+      <LogViewerModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        errorType={selectedErrorType}
+        logs={modalLogs}
+      />
     </div>
   );
 }

@@ -15,96 +15,43 @@ RED := \033[0;31m
 BLUE := \033[0;34m
 NC := \033[0m # No Color
 
-.PHONY: help start start-no-build stop restart build logs status health clean
+.PHONY: help start start-no-build stop restart logs clean
 
-# Help target
-help: ## Show this help message
-	@echo "$(BLUE)Vocode Analytics Dashboard - Available Commands:$(NC)"
-	@echo ""
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@echo ""
-	@echo "$(YELLOW)Quick Start:$(NC)"
-	@echo "  make start         - Start the dashboard (with build)"
-	@echo "  make start-no-build - Start the dashboard (skip build)"
-	@echo "  make stop          - Stop the dashboard"
-	@echo "  make logs          - View logs"
-	@echo "  make status        - Check service status"
+help: ## Show this help message. Use 'make <command>'
+	@echo "$(BLUE)Vocode Analytics Dashboard - Essential Commands:$(NC)"
+	@echo "  $(GREEN)start$(NC)        - Build & start the dashboard."
+	@echo "  $(GREEN)start-no-build$(NC) - Start without rebuilding."
+	@echo "  $(GREEN)stop$(NC)         - Stop the dashboard containers."
+	@echo "  $(GREEN)restart$(NC)      - Restart the dashboard."
+	@echo "  $(GREEN)logs$(NC)         - View real-time logs."
+	@echo "  $(GREEN)clean$(NC)        - Stop, remove containers/volumes/network."
 
-# Pre-deployment checks
-check-docker: ## Check if Docker is running
-	@if ! docker info > /dev/null 2>&1; then \
-		echo "$(RED)❌ Docker is not running. Please start Docker Desktop or the Docker daemon.$(NC)"; \
-		exit 1; \
-	fi
-	@echo "$(GREEN)✅ Docker daemon is running.$(NC)"
+start: ## Build & start the dashboard.
+	@echo "$(BLUE)🚀 Building & starting dashboard...$(NC)"
+	docker compose up -d --build --wait
+	@echo "$(GREEN)✅ Dashboard running at http://localhost:3001$(NC)"
 
-check-port: ## Check if dashboard port is available
-	@if lsof -Pi :$(DASHBOARD_PORT) -sTCP:LISTEN -t >/dev/null 2>&1; then \
-		echo "$(RED)❌ Port $(DASHBOARD_PORT) is already in use.$(NC)"; \
-		echo "Please free the port or modify DASHBOARD_PORT in your .env file."; \
-		exit 1; \
-	fi
-	@echo "$(GREEN)✅ Port $(DASHBOARD_PORT) is available.$(NC)"
+start-no-build: ## Start dashboard (skip build).
+	@echo "$(BLUE)🚀 Starting dashboard (no build)...$(NC)"
+	docker compose up -d --wait
+	@echo "$(GREEN)✅ Dashboard running at http://localhost:3001$(NC)"
 
-check-env: ## Check for .env file
-	@if [ ! -f .env ]; then \
-		echo "$(YELLOW)⚠️  .env file not found. Creating with default values.$(NC)"; \
-		echo "DASHBOARD_PORT=$(DASHBOARD_PORT)" > .env; \
-		echo "REDIS_HOST=redis" >> .env; \
-		echo "REDIS_PORT=$(REDIS_PORT)" >> .env; \
-	fi
-
-# Main deployment targets
-start: check-docker check-env check-port ## Start the Vocode Analytics Dashboard (with build)
-	@echo "$(BLUE)🚀 Starting Vocode Analytics Dashboard...$(NC)"
-	@echo "$(BLUE)📦 Building dashboard image...$(NC)"
-	docker compose build --no-cache
-	@echo "$(BLUE)🔧 Starting services...$(NC)"
-	docker compose up -d
-	@echo "$(GREEN)✅ Dashboard started!$(NC)"
-	@echo "$(GREEN)🌐 Access at:$(NC) http://localhost:$(DASHBOARD_PORT)"
-
-start-no-build: check-docker check-env check-port ## Start the Vocode Analytics Dashboard (skip build)
-	@echo "$(BLUE)🚀 Starting Vocode Analytics Dashboard (no build)...$(NC)"
-	@echo "$(BLUE)🔧 Starting services...$(NC)"
-	docker compose up -d
-	@echo "$(GREEN)✅ Dashboard started!$(NC)"
-	@echo "$(GREEN)🌐 Access at:$(NC) http://localhost:$(DASHBOARD_PORT)"
-
-stop: ## Stop the Vocode Analytics Dashboard
-	@echo "$(BLUE)🛑 Stopping Vocode Analytics Dashboard...$(NC)"
+stop: ## Stop dashboard containers.
+	@echo "$(BLUE)🛑 Stopping dashboard...$(NC)"
 	docker compose down
 	@echo "$(GREEN)✅ Dashboard stopped.$(NC)"
 
-restart: stop start-no-build ## Restart the Vocode Analytics Dashboard
+restart: stop start-no-build ## Restart the dashboard.
 
-# Build target
-build: check-docker ## Build the dashboard image
-	@echo "$(BLUE)📦 Building dashboard image...$(NC)"
-	docker compose build --no-cache
-	@echo "$(GREEN)✅ Build complete.$(NC)"
-
-# Monitoring targets
-logs: ## View real-time logs
+logs: ## View real-time logs.
 	@echo "$(BLUE)📋 Viewing logs...$(NC)"
 	docker compose logs -f
 
-status: ## Check service status
-	@echo "$(BLUE)📊 Service Status:$(NC)"
-	docker compose ps
-
-health: ## Test health endpoint
-	@echo "$(BLUE)🏥 Testing health endpoint...$(NC)"
-	@if curl -f http://localhost:$(DASHBOARD_PORT)/health > /dev/null 2>&1; then \
-		echo "$(GREEN)✅ Health check passed!$(NC)"; \
-		curl -s http://localhost:$(DASHBOARD_PORT)/health | jq . 2>/dev/null || curl -s http://localhost:$(DASHBOARD_PORT)/health; \
-	else \
-		echo "$(RED)❌ Health check failed!$(NC)"; \
-		echo "Service might not be running. Try: make start"; \
-	fi
-
-# Cleanup target
-clean: ## Stop and remove containers, networks, and volumes
-	@echo "$(BLUE)🧹 Cleaning up...$(NC)"
+clean: ## Stop and remove all Docker resources.
+	@echo "$(BLUE)🧹 Cleaning up all Docker resources...$(NC)"
 	docker compose down --volumes --remove-orphans
-	@echo "$(GREEN)✅ Cleanup complete.$(NC)" 
+	docker network rm vocode-network 2>/dev/null || true
+	docker images | grep vocode | awk '{print $$3}' | xargs -r docker rmi -f
+	docker volume ls | grep vocode | awk '{print $$2}' | xargs -r docker volume rm
+	docker system prune -f
+	@echo "$(GREEN)✅ Cleanup complete!$(NC)" 

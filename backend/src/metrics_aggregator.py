@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 
-from .models import LiveStatus, ErrorSummary
+from .models import LiveStatus, ErrorSummary, FinancialMetrics
 from .redis_consumer import VocodeRedisConsumer
 
 logger = logging.getLogger(__name__)
@@ -12,6 +12,48 @@ class MetricsAggregator:
     def __init__(self) -> None:
         # error_buffer is now directly accessed from redis_consumer
         pass
+
+    ERROR_COSTS: Dict[str, float] = {
+        'low': 0.68,
+        'medium': 4.70,
+        'high': 71.50,
+        'critical': 117.85
+    }
+    AVG_VALUE_PER_ACTIVE_CALL_PER_MINUTE: float = 1.00 # $1.00/min per call for simplicity in demo
+
+    def calculate_financial_metrics(self, redis_consumer: VocodeRedisConsumer | None) -> FinancialMetrics:
+        now = datetime.now()
+        
+        estimated_revenue_per_min = 0.0
+        if redis_consumer:
+            estimated_revenue_per_min = redis_consumer.active_calls * self.AVG_VALUE_PER_ACTIVE_CALL_PER_MINUTE
+
+        estimated_cost_of_recent_errors = 0.0
+        if redis_consumer:
+            recent_errors = [
+                e for e in list(redis_consumer.error_buffer)
+                if now - datetime.fromtimestamp(float(e['timestamp']) / 1000) < timedelta(minutes=5)
+            ]
+            for error in recent_errors:
+                severity = error.get('severity', 'medium').lower()
+                estimated_cost_of_recent_errors += self.ERROR_COSTS.get(severity, 0.0)
+
+        # Calculate Min Run and Total ROI
+        min_run = 0.0
+        total_roi = 0.0
+        
+        # Import here to avoid circular imports
+        import src.main as main_app_globals
+        if main_app_globals.app_start_time:
+            time_delta = now - main_app_globals.app_start_time
+            min_run = time_delta.total_seconds() / 60.0
+            total_roi = (min_run * estimated_revenue_per_min) - estimated_cost_of_recent_errors
+
+        return FinancialMetrics(
+            estimated_revenue_per_min=round(estimated_revenue_per_min, 2),
+            estimated_cost_of_recent_errors=round(estimated_cost_of_recent_errors, 2),
+            total_roi=round(total_roi, 2)
+        )
 
     def calculate_live_status(self, redis_consumer: VocodeRedisConsumer | None) -> LiveStatus:
         """Calculate system health based on recent metrics with severity weighting."""

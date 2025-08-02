@@ -47,6 +47,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                         timestamp=datetime.now()
                     ),
                     error_summary=aggregator.get_24h_error_summary(redis_consumer),
+                    financial_impact=aggregator.calculate_financial_metrics(redis_consumer),
                     last_updated=datetime.now()
                 )
                 await manager.broadcast_metrics(metrics)
@@ -87,7 +88,7 @@ async def inject_demo_error(request: DemoErrorRequest, broadcast: bool = True) -
         }
         redis_consumer.error_buffer.append(demo_error_data)
         injected_count += 1
-        logger.warning(f"DEMO MODE: Injected {request.severity.upper()} error: {request.error_type} - '{request.message}' (Count: {injected_count})")
+        logger.warning(f"DEMO MODE: Injected error. Type: '{request.error_type}', Severity: '{request.severity.upper()}', Message: '{request.message}', Count: {injected_count}")
 
     if broadcast:
         # After injecting, immediately recalculate and broadcast metrics
@@ -98,6 +99,7 @@ async def inject_demo_error(request: DemoErrorRequest, broadcast: bool = True) -
                 timestamp=datetime.now()
             ),
             error_summary=aggregator.get_24h_error_summary(redis_consumer),
+            financial_impact=aggregator.calculate_financial_metrics(redis_consumer),
             last_updated=datetime.now()
         )
         await manager.broadcast_metrics(metrics)
@@ -116,16 +118,19 @@ async def simulate_active_calls(request: SimulateActiveCallsRequest) -> Dict[str
             detail="Error: Redis consumer service not initialized."
         )
 
-    redis_consumer.active_calls = request.count
-    logger.warning(f"DEMO MODE: Simulated active calls set to: {request.count}")
+    # Add/subtract from current active calls
+    redis_consumer.active_calls = max(0, redis_consumer.active_calls + request.delta)
+    logger.warning(f"DEMO MODE: Active calls changed by {request.delta}. New total: {redis_consumer.active_calls}")
 
-    return {"message": f"Successfully simulated {request.count} active calls.", "status": "success"}
+    action_word = "added" if request.delta >= 0 else "subtracted"
+    return {"message": f"Successfully {action_word} {abs(request.delta)} active calls. New total: {redis_consumer.active_calls}.", "status": "success"}
 
 async def reset_demo_state() -> Dict[str, str]:
     """
     Resets all demo-related states to their defaults.
     - Resets active calls to 0.
     - Clears the error buffer.
+    - Resets app start time for Min Run calculation.
     NOTE: THIS ENDPOINT IS FOR DEMO/DEVELOPMENT ONLY.
     """
     if redis_consumer is None:
@@ -141,9 +146,15 @@ async def reset_demo_state() -> Dict[str, str]:
     # Clear the error buffer
     redis_consumer.error_buffer.clear()
     
+    # Reset app start time for Min Run calculation
+    import src.main as main_app_globals
+    if main_app_globals.app_start_time:
+        main_app_globals.app_start_time = datetime.now()
+        logger.warning("DEMO MODE: Resetting app_start_time for Min Run calculation.")
+    
     logger.warning("DEMO MODE: All demo states have been reset.")
     
-    return {"message": "Successfully reset all demo states.", "status": "success"}
+    return {"message": "All demo states reset.", "status": "success"}
 
 async def health_check() -> Dict[str, Any]:
     """Enhanced health check that includes Redis connectivity status and LiveStatus calculation."""
@@ -219,8 +230,11 @@ async def health_check() -> Dict[str, Any]:
 async def get_error_logs(error_type: str, limit: int = 50) -> Dict[str, List[Dict[str, Any]]]:
     """Fetch recent error logs for drill-down functionality."""
     if redis_consumer is None:
+        logger.error("get_error_logs called but redis_consumer is None.")
         return {"errors": []}
     
+    logger.info(f"Fetching logs for error_type: '{error_type}'. Buffer size: {len(redis_consumer.error_buffer)}")
+
     # Filter error_buffer for matching error_type and sort by timestamp
     matching_errors: List[Dict[str, Any]] = sorted(
         [
@@ -230,4 +244,7 @@ async def get_error_logs(error_type: str, limit: int = 50) -> Dict[str, List[Dic
         key=lambda x: int(x['timestamp']), # Sort by timestamp numerically
         reverse=True # Most recent first
     )
+    
+    logger.info(f"Found {len(matching_errors)} matching logs for error_type: '{error_type}'.")
+    
     return {"errors": matching_errors[:limit]} 

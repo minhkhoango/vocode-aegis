@@ -4,6 +4,8 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from datetime import datetime
+from typing import Optional
 
 from fastapi import FastAPI, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,12 +33,15 @@ manager: ConnectionManager | None = None
 redis_consumer: VocodeRedisConsumer | None = None
 aggregator: MetricsAggregator | None = None
 consumer_task: asyncio.Task[None] | None = None
+app_start_time: Optional[datetime] = None  # New global variable for tracking app start time
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    global manager, redis_consumer, aggregator, consumer_task
+    global manager, redis_consumer, aggregator, consumer_task, app_start_time
     manager = ConnectionManager()
+    app_start_time = datetime.now()  # Set on app startup
+    logger.info(f"FastAPI application started at {app_start_time}.")
     
     try:
         redis_consumer = VocodeRedisConsumer(
@@ -82,27 +87,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files - the React build creates a 'static' directory.
-# The 'build' directory from the frontend is copied to 'static' in the Dockerfile.
-static_dir = Path("static")
-if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=static_dir / "static"), name="static")
-    
-    @app.get("/{full_path:path}", response_class=HTMLResponse)
-    async def serve_react_app(full_path: str):
-        """
-        Serve the React application.
-        This endpoint catches all other paths and serves the index.html,
-        allowing React Router to handle the client-side routing.
-        """
-        index_path = static_dir / "index.html"
-        if index_path.exists():
-            with open(index_path, "r") as f:
-                return HTMLResponse(content=f.read(), status_code=200)
-        return HTMLResponse(content="Frontend not found.", status_code=404)
-else:
-    logger.warning("Static directory not found. Frontend will not be served.")
-
 # --- API Endpoints ---
 
 @app.websocket("/ws")
@@ -135,3 +119,24 @@ async def demo_active_calls_endpoint(request: SimulateActiveCallsRequest):
 async def demo_reset_endpoint():
     """Endpoint to reset all demo-related states."""
     return await reset_demo_state()
+
+# Mount static files - the React build creates a 'static' directory.
+# The 'build' directory from the frontend is copied to 'static' in the Dockerfile.
+static_dir = Path("static")
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir / "static"), name="static")
+    
+    @app.get("/{full_path:path}", response_class=HTMLResponse)
+    async def serve_react_app(full_path: str):
+        """
+        Serve the React application.
+        This endpoint catches all other paths and serves the index.html,
+        allowing React Router to handle the client-side routing.
+        """
+        index_path = static_dir / "index.html"
+        if index_path.exists():
+            with open(index_path, "r") as f:
+                return HTMLResponse(content=f.read(), status_code=200)
+        return HTMLResponse(content="Frontend not found.", status_code=404)
+else:
+    logger.warning("Static directory not found. Frontend will not be served.")
