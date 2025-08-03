@@ -6,10 +6,26 @@ import LiveStatusIndicator from './components/LiveStatusIndicator';
 import ErrorSummaryTable from './components/ErrorSummaryTable';
 import LogViewerModal from './components/LogViewerModal';
 
+// Dynamically determine WebSocket URL based on current host and protocol
+const getWebSocketUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  // If running on localhost for dev, use 3001; otherwise, use the current host
+  const host = window.location.hostname === 'localhost' ? 'localhost:3001' : window.location.host;
+  return `${protocol}//${host}/ws`;
+};
 
-// Get WebSocket URL from environment variable injected by react-scripts (set in .env for frontend)
-const WEBSOCKET_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:3001/ws';
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'; // Ensure API_URL is available
+// Get API URL from environment variable or construct dynamically
+const getApiUrl = () => {
+  // If we have an environment variable, use it
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Otherwise, construct based on current location
+  const protocol = window.location.protocol;
+  const host = window.location.hostname === 'localhost' ? 'localhost:3001' : window.location.host;
+  return `${protocol}//${host}`;
+};
 
 function App() {
   const [metrics, setMetrics] = useState(null);
@@ -22,6 +38,10 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedErrorType, setSelectedErrorType] = useState('');
   const [modalLogs, setModalLogs] = useState([]);
+
+  // Get dynamic URLs
+  const WEBSOCKET_URL = getWebSocketUrl();
+  const API_URL = getApiUrl();
 
   // Exponential backoff reconnection strategy
   const scheduleReconnect = useCallback(() => {
@@ -87,7 +107,7 @@ function App() {
     };
 
     return websocket; // Return the websocket instance for cleanup
-  }, [scheduleReconnect]); // Include scheduleReconnect in dependencies
+  }, [WEBSOCKET_URL, scheduleReconnect]); // Include WEBSOCKET_URL and scheduleReconnect in dependencies
 
   useEffect(() => {
     const websocket = connectWebSocket();

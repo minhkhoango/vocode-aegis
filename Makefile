@@ -74,6 +74,8 @@ install-cloudflared:
 	fi
 
 tunnel: install-cloudflared
-	@echo "$(BLUE)🌐 Creating tunnel...$(NC)"
-	@echo "$(YELLOW)⚠️  Public access enabled$(NC)"
-	@cloudflared tunnel --url http://localhost:$(DASHBOARD_PORT) 
+	@echo "$(BLUE)🚀 Ensuring dashboard is up and healthy...$(NC)"
+	docker compose up -d --wait vocode-analytics-dashboard # Ensure specific service is up and healthy
+	@echo "$(BLUE)🌐 Creating Cloudflare tunnel to http://localhost:$(DASHBOARD_PORT)...$(NC)"
+	@echo "$(YELLOW)⚠️  Public access enabled - URL will be displayed below. Ctrl+C to stop tunnel. $(NC)"
+	cloudflared tunnel --url http://localhost:$(DASHBOARD_PORT) 
