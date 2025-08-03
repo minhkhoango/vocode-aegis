@@ -1,57 +1,79 @@
-# Makefile for Vocode Analytics Dashboard
-# Usage: make <target>
+# Vocode Analytics Dashboard Makefile
 
-# Default target
 .DEFAULT_GOAL := help
 
-# Variables
 DASHBOARD_PORT ?= 3001
 REDIS_PORT ?= 6379
 
-# Colors for output
 GREEN := \033[0;32m
 YELLOW := \033[1;33m
 RED := \033[0;31m
 BLUE := \033[0;34m
-NC := \033[0m # No Color
+NC := \033[0m
 
-.PHONY: help start start-no-build stop restart logs clean
+.PHONY: help start start-no-build stop restart logs clean tunnel install-cloudflared check-deps
 
-help: ## Show this help message. Use 'make <command>'
-	@echo "$(BLUE)Vocode Analytics Dashboard - Essential Commands:$(NC)"
-	@echo "  $(GREEN)start$(NC)        - Build & start the dashboard."
-	@echo "  $(GREEN)start-no-build$(NC) - Start without rebuilding."
-	@echo "  $(GREEN)stop$(NC)         - Stop the dashboard containers."
-	@echo "  $(GREEN)restart$(NC)      - Restart the dashboard."
-	@echo "  $(GREEN)logs$(NC)         - View real-time logs."
-	@echo "  $(GREEN)clean$(NC)        - Stop, remove containers/volumes/network."
+check-deps:
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "$(RED)❌ Docker not installed$(NC)"; exit 1; \
+	fi
+	@if ! docker info >/dev/null 2>&1; then \
+		echo "$(RED)❌ Docker not running or no permission$(NC)"; exit 1; \
+	fi
+	@if ! command -v docker compose >/dev/null 2>&1; then \
+		echo "$(RED)❌ Docker Compose not installed$(NC)"; exit 1; \
+	fi
 
-start: ## Build & start the dashboard.
-	@echo "$(BLUE)🚀 Building & starting dashboard...$(NC)"
-	docker compose up -d --build --wait
-	@echo "$(GREEN)✅ Dashboard running at http://localhost:3001$(NC)"
+help:
+	@echo "$(BLUE)Vocode Dashboard Commands:$(NC)"
+	@echo "  $(GREEN)start$(NC)        - Build & start dashboard"
+	@echo "  $(GREEN)start-no-build$(NC) - Start without rebuild"
+	@echo "  $(GREEN)stop$(NC)         - Stop containers"
+	@echo "  $(GREEN)restart$(NC)      - Restart dashboard"
+	@echo "  $(GREEN)logs$(NC)         - View logs"
+	@echo "  $(GREEN)clean$(NC)        - Remove all resources"
+	@echo "  $(GREEN)tunnel$(NC)       - Create public tunnel"
 
-start-no-build: ## Start dashboard (skip build).
-	@echo "$(BLUE)🚀 Starting dashboard (no build)...$(NC)"
-	docker compose up -d --wait
-	@echo "$(GREEN)✅ Dashboard running at http://localhost:3001$(NC)"
+start: check-deps
+	@echo "$(BLUE)🚀 Starting dashboard...$(NC)"
+	@docker compose up -d --build --wait || (echo "$(RED)❌ Failed to start$(NC)"; exit 1)
+	@echo "$(GREEN)✅ Dashboard: http://localhost:$(DASHBOARD_PORT)$(NC)"
 
-stop: ## Stop dashboard containers.
-	@echo "$(BLUE)🛑 Stopping dashboard...$(NC)"
-	docker compose down
-	@echo "$(GREEN)✅ Dashboard stopped.$(NC)"
+start-no-build: check-deps
+	@echo "$(BLUE)🚀 Starting dashboard...$(NC)"
+	@docker compose up -d --wait || (echo "$(RED)❌ Failed to start$(NC)"; exit 1)
+	@echo "$(GREEN)✅ Dashboard: http://localhost:$(DASHBOARD_PORT)$(NC)"
 
-restart: stop start-no-build ## Restart the dashboard.
+stop:
+	@echo "$(BLUE)🛑 Stopping...$(NC)"
+	@docker compose down || true
+	@echo "$(GREEN)✅ Stopped$(NC)"
 
-logs: ## View real-time logs.
-	@echo "$(BLUE)📋 Viewing logs...$(NC)"
-	docker compose logs -f
+restart: stop start-no-build
 
-clean: ## Stop and remove all Docker resources.
-	@echo "$(BLUE)🧹 Cleaning up all Docker resources...$(NC)"
-	docker compose down --volumes --remove-orphans
-	docker network rm vocode-network 2>/dev/null || true
-	docker images | grep vocode | awk '{print $$3}' | xargs -r docker rmi -f
-	docker volume ls | grep vocode | awk '{print $$2}' | xargs -r docker volume rm
-	docker system prune -f
-	@echo "$(GREEN)✅ Cleanup complete!$(NC)" 
+logs:
+	@docker compose logs -f
+
+clean:
+	@echo "$(BLUE)🧹 Cleaning...$(NC)"
+	@docker compose down --volumes --remove-orphans || true
+	@docker network rm vocode-network 2>/dev/null || true
+	@docker images | grep vocode | awk '{print $$3}' | xargs -r docker rmi -f || true
+	@docker volume ls | grep vocode | awk '{print $$2}' | xargs -r docker volume rm || true
+	@docker system prune -f
+	@echo "$(GREEN)✅ Cleaned$(NC)"
+
+install-cloudflared:
+	@if command -v cloudflared >/dev/null 2>&1; then \
+		echo "$(GREEN)✅ Cloudflared installed$(NC)"; \
+	else \
+		echo "$(YELLOW)📦 Installing cloudflared...$(NC)"; \
+		curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb; \
+		sudo dpkg -i cloudflared.deb; rm cloudflared.deb; \
+		echo "$(GREEN)✅ Installed$(NC)"; \
+	fi
+
+tunnel: install-cloudflared
+	@echo "$(BLUE)🌐 Creating tunnel...$(NC)"
+	@echo "$(YELLOW)⚠️  Public access enabled$(NC)"
+	@cloudflared tunnel --url http://localhost:$(DASHBOARD_PORT) 
