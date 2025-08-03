@@ -48,6 +48,13 @@ class MetricsAggregator:
             time_delta = now - main_app_globals.app_start_time
             min_run = time_delta.total_seconds() / 60.0
             total_roi = (min_run * estimated_revenue_per_min) - estimated_cost_of_recent_errors
+            
+            # Debug logging
+            logger.info(f"Financial Metrics Debug - Active Calls: {redis_consumer.active_calls if redis_consumer else 0}, "
+                       f"Revenue/Min: ${estimated_revenue_per_min:.2f}, "
+                       f"Error Cost: ${estimated_cost_of_recent_errors:.2f}, "
+                       f"Min Run: {min_run:.2f}, "
+                       f"Total ROI: ${total_roi:.2f}")
 
         return FinancialMetrics(
             estimated_revenue_per_min=round(estimated_revenue_per_min, 2),

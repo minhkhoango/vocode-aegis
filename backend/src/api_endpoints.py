@@ -32,13 +32,24 @@ def set_global_dependencies(
 
 async def websocket_endpoint(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time metrics broadcasting."""
+    logger.info("WebSocket endpoint function called")
+    
     if manager is None:
+        logger.error("Manager is None, closing WebSocket connection")
         await websocket.close(code=1008)  # Policy violation
         return
     
+    logger.info("Manager is available, connecting WebSocket")
     await manager.connect(websocket)
+    logger.info("WebSocket connected, entering broadcast loop")
+    
     try:
         while True:
+            # Debug logging to see the state
+            logger.info(f"WebSocket loop - Active connections: {len(manager.active_connections) if manager else 0}, "
+                       f"Redis consumer: {redis_consumer is not None}, "
+                       f"Aggregator: {aggregator is not None}")
+            
             if manager.active_connections and redis_consumer and aggregator: # Only send if there are active connections
                 metrics = DashboardMetrics(
                     live_status=aggregator.calculate_live_status(redis_consumer),
@@ -50,7 +61,14 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     financial_impact=aggregator.calculate_financial_metrics(redis_consumer),
                     last_updated=datetime.now()
                 )
+                
+                # Debug logging for financial metrics
+                logger.info(f"WebSocket Broadcast Debug - Active Calls: {metrics.active_calls.count}, "
+                           f"Financial Impact: {metrics.financial_impact}")
+                
                 await manager.broadcast_metrics(metrics)
+            else:
+                logger.info("Skipping broadcast - missing required components")
             
             # Use the environment variable for refresh interval
             refresh_interval_ms = int(os.getenv("DASHBOARD_REFRESH_INTERVAL", "5000"))

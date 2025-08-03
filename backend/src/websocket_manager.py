@@ -29,11 +29,17 @@ class ConnectionManager:
 
     async def broadcast_metrics(self, metrics: DashboardMetrics) -> None:
         disconnected_connections: List[WebSocket] = []
+        
+        # Debug logging for financial metrics
+        logger.info(f"Broadcasting metrics - Active connections: {len(self.active_connections)}, "
+                   f"Financial Impact: {metrics.financial_impact}")
+        
         for connection in self.active_connections:
             try:
                 # Convert Pydantic model to dict and handle datetime serialization
                 metrics_dict = metrics.model_dump(mode='json')
                 await connection.send_text(json.dumps(metrics_dict))
+                logger.debug(f"Successfully sent metrics to WebSocket")
             except RuntimeError as e: # Catch specific runtime errors for disconnected sockets
                 logger.warning(f"Failed to send to WebSocket (likely disconnected): {e}")
                 disconnected_connections.append(connection)

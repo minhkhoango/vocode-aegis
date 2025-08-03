@@ -8,10 +8,16 @@ import LogViewerModal from './components/LogViewerModal';
 
 // Dynamically determine WebSocket URL based on current host and protocol
 const getWebSocketUrl = () => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // If running on localhost for dev, use 3001; otherwise, use the current host
-  const host = window.location.hostname === 'localhost' ? 'localhost:3001' : window.location.host;
-  return `${protocol}//${host}/ws`;
+  try {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // If running on localhost for dev, use 3001; otherwise, use the current host
+    const host = window.location.hostname === 'localhost' ? 'localhost:3001' : window.location.host;
+    return `${protocol}//${host}/ws`;
+  } catch (error) {
+    console.error('Error constructing WebSocket URL:', error);
+    // Fallback to localhost if dynamic construction fails
+    return 'ws://localhost:3001/ws';
+  }
 };
 
 // Get API URL from environment variable or construct dynamically
@@ -82,6 +88,10 @@ function App() {
     websocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('Received WebSocket data:', data); // Debug log
+        if (data.financial_impact) {
+          console.log('Financial metrics received:', data.financial_impact); // Debug financial metrics
+        }
         setMetrics(data);
       } catch (e) {
         console.error('Failed to parse WebSocket message:', e, event.data);

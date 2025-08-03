@@ -92,7 +92,13 @@ app.add_middleware(
 @app.websocket("/ws")
 async def websocket_endpoint_handler(websocket: WebSocket):
     """WebSocket endpoint handler."""
-    await websocket_endpoint(websocket)
+    logger.info("WebSocket endpoint handler called")
+    try:
+        await websocket_endpoint(websocket)
+        logger.info("WebSocket endpoint function completed")
+    except Exception as e:
+        logger.exception(f"Error in WebSocket endpoint handler: {e}")
+        raise
 
 @app.get("/health")
 async def health():
