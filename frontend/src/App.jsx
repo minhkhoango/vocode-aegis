@@ -10,8 +10,8 @@ import LogViewerModal from './components/LogViewerModal';
 const getWebSocketUrl = () => {
   try {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // If running on localhost for dev, use 3001; otherwise, use the current host
-    const host = window.location.hostname === 'localhost' ? 'localhost:3001' : window.location.host;
+    // Use the current host for both local and tunnel access
+    const host = window.location.host;
     return `${protocol}//${host}/ws`;
   } catch (error) {
     console.error('Error constructing WebSocket URL:', error);
@@ -22,15 +22,13 @@ const getWebSocketUrl = () => {
 
 // Get API URL from environment variable or construct dynamically
 const getApiUrl = () => {
-  // If we have an environment variable, use it
-  if (process.env.REACT_APP_API_URL) {
+  // If we have an environment variable and it's not empty, use it
+  if (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.trim() !== '') {
     return process.env.REACT_APP_API_URL;
   }
   
-  // Otherwise, construct based on current location
-  const protocol = window.location.protocol;
-  const host = window.location.hostname === 'localhost' ? 'localhost:3001' : window.location.host;
-  return `${protocol}//${host}`;
+  // Otherwise, use relative URLs which will work with both local and tunnel access
+  return '';
 };
 
 function App() {

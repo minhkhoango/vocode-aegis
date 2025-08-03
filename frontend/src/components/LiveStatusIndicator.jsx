@@ -14,7 +14,18 @@ const errorInjectionSequence = [
   errorDefinitions.high,
 ];
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// Get API URL dynamically based on current location
+const getApiUrl = () => {
+  // If we have an environment variable and it's not empty, use it
+  if (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.trim() !== '') {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Otherwise, use relative URLs which will work with both local and tunnel access
+  return '';
+};
+
+const API_URL = getApiUrl();
 
 function LiveStatusIndicator({ status, activeCalls, financialImpact, metrics }) {
   const [statusMessage, setStatusMessage] = useState('');
