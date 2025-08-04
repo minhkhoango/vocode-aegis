@@ -5,7 +5,7 @@ Real-time analytics dashboard for Vocode conversation monitoring with financial 
 ## 🎯 Features
 
 - **Revenue per Minute** - $1.00 × active calls
-- **Error Costs** - Low: $0.68, Medium: $4.70, High: $71.50, Critical: $117.85
+- **Error Costs** - Low: $0.68, Medium: $4.70, High: $71.50
 - **Total ROI** - Net financial impact over runtime
 - **Live Status** - Color-coded health (Green/Yellow/Red)
 
